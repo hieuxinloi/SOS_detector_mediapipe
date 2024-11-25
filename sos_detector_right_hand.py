@@ -26,7 +26,6 @@ class SOSdetector:
             print(f"Image saved as {filename}")
             return filename
 
-
     def _stage1(self, hand_landmarks):
         """Stage 1: All fingers (A to E) open""" 
         THUMB_TIP = hand_landmarks[4]
@@ -128,7 +127,6 @@ class SOSdetector:
     
 
     def run_detection(self):
-        """Run hand gesture detection"""
         cap = cv2.VideoCapture(0)
         try:
             while cap.isOpened():
@@ -140,16 +138,17 @@ class SOSdetector:
                 results = self.hands.process(image)
                 image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
 
-                if results.multi_hand_landmarks:
-                    hand_landmarks = results.multi_hand_landmarks[0]
-                    self.mp_drawing.draw_landmarks(image, hand_landmarks, self.mp_hands.HAND_CONNECTIONS)
-                    signal = self.detect_hand_signal(hand_landmarks.landmark)
-                    cv2.putText(image, signal, (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2, cv2.LINE_AA)
+                if results.multi_hand_landmarks and results.multi_handedness:
+                    for hand_landmarks, handedness in zip(results.multi_hand_landmarks, results.multi_handedness):
+                        if handedness.classification[0].label == 'Right':
+                            self.mp_drawing.draw_landmarks(image, hand_landmarks, self.mp_hands.HAND_CONNECTIONS)
+                            signal = self.detect_hand_signal(hand_landmarks.landmark)
+                            cv2.putText(image, signal, (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2, cv2.LINE_AA)
 
-                    if signal == "SOS DETECTION":
-                        image_path = self._save_image(image)
-                        self.notification_manager.send_notifications("SOS Alert detected!", image_path)
-                        self.current_stage = 0  # Reset stages after capture
+                            if signal == "SOS DETECTION":
+                                image_path = self._save_image(image)
+                                self.notification_manager.send_notifications("SOS Alert detected!", image_path)
+                                self.current_stage = 0  # Reset stages after capture
 
                 cv2.imshow('Hand Signal Detection', image)
 
@@ -159,6 +158,7 @@ class SOSdetector:
             cap.release()
             self.notification_manager.cleanup()
             cv2.destroyAllWindows()
+
 
 if __name__ == "__main__":
     detector = SOSdetector()
